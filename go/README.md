@@ -1,4 +1,4 @@
-experimental support for the [feather file format](github.com/wesm/feather) in Go
+experimental support for the [feather file format](http://github.com/wesm/feather) in Go
 
 the `fbs` folder was generated using `flatc`, the flatbuffers schema generator
 

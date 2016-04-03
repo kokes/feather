@@ -3,13 +3,31 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"os"
 	//"io/ioutil"
 	"./fbs"
 	"encoding/binary"
+	"errors"
 	//	flatbuffers "github.com/google/flatbuffers/go"
 )
+
+type Frame struct {
+	File *os.File
+	FSize int64
+	Cols []string
+	Meta map[string]*Column
+}
+
+type Column struct {
+	Name string
+	Type int8
+	Length int
+	Offset int
+	TotalBytes int
+	NullCount int
+	// Metadata
+	// MetadataType
+}
 
 // column types (as saved in metadata)
 type ctype int8
@@ -33,46 +51,51 @@ const (
 	T_TIME
 )
 
-func main() {
-
-	fn := "../testdata/minwage.fth"
-
-	f, _ := os.Open(fn)
-	defer f.Close()
-
+func Open(fn string) (*Frame, error) {
+	fr := new(Frame)
+	f, err := os.Open(fn)
+	if err != nil {
+		return new(Frame), err
+	}
 	st, _ := f.Stat()
-	fs := st.Size()
-
-	fmt.Println(fs)
+	fr.FSize = st.Size()
 
 	hd := make([]byte, 4)
 	ft := make([]byte, 4)
 	f.Read(hd)
-	f.ReadAt(ft, fs-4)
+	f.ReadAt(ft, fr.FSize-4)
 
 	mby := "FEA1" // required magic string
 
 	if string(hd) != mby {
-		log.Fatal("Header incorrect")
+		return nil, errors.New("Header incorrect")
 	}
 	if string(ft) != mby {
-		log.Fatal("Footer incorrect")
+		return nil, errors.New("Footer incorrect")
 	}
 
+	fr.File = f
+
+	fr.readMetadata()
+
+	return fr, nil
+}
+
+// TODO: returns?
+func (fr *Frame) readMetadata() {
 	mtsb := make([]byte, 4) // metadata size
-	f.ReadAt(mtsb, fs-4-4)  // minus magic bytes and metadata size
+	fr.File.ReadAt(mtsb, fr.FSize-4-4)  // minus magic bytes and metadata size
 
 	var mts int32
 	binary.Read(bytes.NewBuffer(mtsb), binary.LittleEndian, &mts)
-	fmt.Println(mts)
 
 	mtd := make([]byte, mts)
-	f.ReadAt(mtd, fs-4-4-int64(mts))
+	fr.File.ReadAt(mtd, fr.FSize-4-4-int64(mts))
 
 	meta := fbs.GetRootAsCTable(mtd, 0)
-	fmt.Println(meta.ColumnsLength())
-	fmt.Println(meta.NumRows())
-	fmt.Println(meta.Description())
+	// fmt.Println(meta.ColumnsLength())
+	// fmt.Println(meta.NumRows())
+	// fmt.Println(meta.Description())
 
 	nc := meta.ColumnsLength()
 	for j := 0; j < nc; j++ {
@@ -99,5 +122,22 @@ func main() {
 
 
 	}
+}
+
+// TODO: returns?
+func (f *Frame) Close() {
+	f.File.Close()
+}
+
+func main() {
+
+	fn := "../testdata/minwage.fth"
+
+	f, _ := Open(fn)
+	defer f.Close()
+
+
+
+
 
 }
