@@ -1,10 +1,10 @@
-package main
+package feather
 
 import (
 	"bytes"
-	"fmt"
+	// "fmt"
 	"os"
-	//"io/ioutil"
+	// "io/ioutil"
 	"./fbs"
 	"encoding/binary"
 	// "unicode/utf8"
@@ -22,7 +22,7 @@ type Frame struct {
 
 type Column struct {
 	Name       string
-	Type       ctype
+	Type       ctype // TODO: add a stringed version for further use
 	Length     int64
 	Offset     int64
 	TotalBytes int64
@@ -153,19 +153,14 @@ func (fr *Frame) Read(cl string) interface{} {
 	buf := bytes.NewBuffer(bt)
 	switch cln.Type {
 	case T_BOOL:
-		// ret := make([]bool, cln.Length)
-		// one := uint8(1)
-		// for j, b := range bt {
-		// 	ret[j*8 + 0] = b == b | one << 7
-		// 	ret[j*8 + 1] = b == b | one << 6
-		// 	ret[j*8 + 2] = b == b | one << 5
-		// 	ret[j*8 + 3] = b == b | one << 4
-		// 	ret[j*8 + 4] = b == b | one << 3
-		// 	ret[j*8 + 5] = b == b | one << 2
-		// 	ret[j*8 + 6] = b == b | one << 1
-		// 	ret[j*8 + 7] = b == b | one << 0
-		// }
-		// return ret
+		ret := make([]bool, cln.Length)
+		for j, b := range bt {
+			// OPTIM: trivial to unroll - test performance
+			for k := 0; k < 8; k++ {
+				ret[j*8 + k] = b == b | uint8(1) << uint8(k)
+			}
+		}
+		return ret
 
 	case T_INT8:
 		ret := make([]int8, cln.Length)
@@ -246,26 +241,20 @@ func (fr *Frame) Read(cl string) interface{} {
 	return struct{}{}
 }
 
+func (fr *Frame) ReadBool(cl string) []bool {
+	arr := fr.Read(cl)
+	return arr.([]bool)
+}
+func (fr *Frame) ReadDouble(cl string) []float64 {
+	arr := fr.Read(cl)
+	return arr.([]float64)
+}
+func (fr *Frame) ReadString(cl string) []string {
+	arr := fr.Read(cl)
+	return arr.([]string)
+}
+
 // TODO: returns?
 func (f *Frame) Close() {
 	f.File.Close()
-}
-
-func main() {
-	_ = fmt.Println
-
-	fn := "../testdata/minwage.fth"
-
-	f, _ := Open(fn)
-	defer f.Close()
-
-	// fmt.Println(f.Cols)
-	fmt.Println(f.Read("mw"))
-	c := f.Read("c")
-	mw := f.Read("mw")
-
-	for j, v := range c.([]string) {
-		fmt.Println(v, mw.([]bool)[j])
-	}
-
 }
