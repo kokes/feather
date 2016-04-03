@@ -13,27 +13,28 @@ import (
 )
 
 type Frame struct {
-	File *os.File
-	FSize int64
+	File    *os.File
+	FSize   int64
 	NumRows int64
-	Cols []string // to preserve order
-	Meta map[string]*Column
+	Cols    []string // to preserve order
+	Meta    map[string]*Column
 }
 
 type Column struct {
-	Name string
-	Type ctype
-	Length int64
-	Offset int64
+	Name       string
+	Type       ctype
+	Length     int64
+	Offset     int64
 	TotalBytes int64
-	NullCount int64
-	Encoding int8
+	NullCount  int64
+	Encoding   int8
 	// Metadata
 	// MetadataType
 }
 
 // column types (as saved in metadata)
 type ctype int8
+
 const (
 	T_BOOL ctype = iota
 	T_INT8
@@ -87,8 +88,8 @@ func Open(fn string) (*Frame, error) {
 
 // TODO: returns?
 func (fr *Frame) readMetadata() {
-	mtsb := make([]byte, 4) // metadata size
-	fr.File.ReadAt(mtsb, fr.FSize-4-4)  // minus magic bytes and metadata size
+	mtsb := make([]byte, 4)            // metadata size
+	fr.File.ReadAt(mtsb, fr.FSize-4-4) // minus magic bytes and metadata size
 
 	var mts int32
 	binary.Read(bytes.NewBuffer(mtsb), binary.LittleEndian, &mts)
@@ -111,13 +112,13 @@ func (fr *Frame) readMetadata() {
 
 		nm := string(cl.Name())
 		cln := Column{
-			Name: nm,
-			Type: ctype(vl.Type()),
-			Length: vl.Length(),
-			Offset: vl.Offset(),
+			Name:       nm,
+			Type:       ctype(vl.Type()),
+			Length:     vl.Length(),
+			Offset:     vl.Offset(),
 			TotalBytes: vl.TotalBytes(),
-			NullCount: vl.NullCount(),
-			Encoding: vl.Encoding(),
+			NullCount:  vl.NullCount(),
+			Encoding:   vl.Encoding(),
 		}
 
 		fr.Meta[nm] = &cln
@@ -151,7 +152,21 @@ func (fr *Frame) Read(cl string) interface{} {
 
 	buf := bytes.NewBuffer(bt)
 	switch cln.Type {
-	// case T_BOOL:
+	case T_BOOL:
+		// ret := make([]bool, cln.Length)
+		// one := uint8(1)
+		// for j, b := range bt {
+		// 	ret[j*8 + 0] = b == b | one << 7
+		// 	ret[j*8 + 1] = b == b | one << 6
+		// 	ret[j*8 + 2] = b == b | one << 5
+		// 	ret[j*8 + 3] = b == b | one << 4
+		// 	ret[j*8 + 4] = b == b | one << 3
+		// 	ret[j*8 + 5] = b == b | one << 2
+		// 	ret[j*8 + 6] = b == b | one << 1
+		// 	ret[j*8 + 7] = b == b | one << 0
+		// }
+		// return ret
+
 	case T_INT8:
 		ret := make([]int8, cln.Length)
 		binary.Read(buf, binary.LittleEndian, &ret)
@@ -204,11 +219,11 @@ func (fr *Frame) Read(cl string) interface{} {
 		ret := make([]string, cln.Length)
 
 		bt = bt[4*(cln.Length+1):] // cut off the offsets
-		
+
 		var end uint32
 		for j, o := range off {
-			if j < len(off) - 1 {
-			 	end = off[j+1]
+			if j < len(off)-1 {
+				end = off[j+1]
 			} else {
 				end = uint32(len(bt))
 			}
@@ -216,7 +231,7 @@ func (fr *Frame) Read(cl string) interface{} {
 		}
 
 		return ret
-	
+
 	// case T_BINARY:
 
 	// case T_CATEGORY
@@ -245,6 +260,12 @@ func main() {
 	defer f.Close()
 
 	// fmt.Println(f.Cols)
-	fmt.Println(f.Read("c"))
+	fmt.Println(f.Read("mw"))
+	c := f.Read("c")
+	mw := f.Read("mw")
+
+	for j, v := range c.([]string) {
+		fmt.Println(v, mw.([]bool)[j])
+	}
 
 }
