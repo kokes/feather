@@ -2,14 +2,11 @@ package feather
 
 import (
 	"bytes"
-	// "fmt"
 	"os"
-	// "io/ioutil"
 	"./fbs"
 	"encoding/binary"
-	// "unicode/utf8"
 	"errors"
-	//	flatbuffers "github.com/google/flatbuffers/go"
+	// flatbuffers "github.com/google/flatbuffers/go"
 )
 
 type Frame struct {
@@ -27,6 +24,7 @@ type Column struct {
 	Offset     int64
 	TotalBytes int64
 	NullCount  int64
+	NullMap    []bool // store bitarray of nulls (TODO: return interface{} with nils instead?)
 	Encoding   int8
 	// Metadata
 	// MetadataType
@@ -140,21 +138,45 @@ func (fr *Frame) Read(cl string) interface{} {
 	if !ok {
 		panic("Column not found")
 	}
+
+	ncb := int64(0) // bytes occupied by the bitmask
 	if cln.NullCount != 0 {
-		panic("Can't read bitmasks yet") // TODO
+		ncb = cln.Length/8
+		if cln.Length % 8 > 0 {
+			ncb += 1
+		}
+
+		bt := make([]byte, ncb)
+		fr.File.ReadAt(bt, cln.Offset)
+		cln.NullMap = make([]bool, cln.Length)
+
+		maxb := 8
+		for j, b := range bt {
+			// handling a loose byte
+			if int64(j) == ncb - 1 && cln.Length % 8 > 0 {
+				maxb = int(cln.Length % 8)
+			}
+
+			for k := 0; k < maxb; k++ {
+				cln.NullMap[j*8 + k] = b == b | uint8(1) << uint8(k)
+			}
+		}
+
 	}
 	if cln.Encoding != 0 {
 		panic("Can't do dictionaries just yet") // TODO
 	}
 
 	bt := make([]byte, cln.TotalBytes)
-	fr.File.ReadAt(bt, cln.Offset)
+	fr.File.ReadAt(bt, cln.Offset + ncb)
 
 	buf := bytes.NewBuffer(bt)
+
 	switch cln.Type {
 	case T_BOOL:
 		ret := make([]bool, cln.Length)
 		for j, b := range bt {
+			// TODO: will fail on a loose bit array
 			// OPTIM: trivial to unroll - test performance
 			for k := 0; k < 8; k++ {
 				ret[j*8 + k] = b == b | uint8(1) << uint8(k)
@@ -162,6 +184,8 @@ func (fr *Frame) Read(cl string) interface{} {
 		}
 		return ret
 
+	// TODO: recast this slice into the target type
+	//		 involves unsafe changes to slice properties
 	case T_INT8:
 		ret := make([]int8, cln.Length)
 		binary.Read(buf, binary.LittleEndian, &ret)

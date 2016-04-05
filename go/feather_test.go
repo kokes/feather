@@ -88,3 +88,15 @@ func TestUTF(t *testing.T) {
 		}
 	}
 }
+	
+func TestNulls(t *testing.T) {
+	fn := "../testdata/minwage_nulls.fth"
+	f, _ := Open(fn)
+
+	r := f.ReadString("c")
+
+	_=r
+
+
+
+}
