@@ -177,10 +177,13 @@ func (fr *Frame) Read(cl string) interface{} {
 	switch cln.Type {
 	case T_BOOL:
 		ret := make([]bool, cln.Length)
+		maxb := 8
 		for j, b := range bt {
-			// TODO: will fail on a loose bit array
-			// OPTIM: trivial to unroll - test performance
-			for k := 0; k < 8; k++ {
+			if j == len(bt)-1 && cln.Length%8 > 0 {
+				maxb = int(cln.Length % 8)
+			}
+			
+			for k := 0; k < maxb; k++ {
 				ret[j*8+k] = b == b|uint8(1)<<uint8(k)
 			}
 		}
@@ -247,7 +250,9 @@ func (fr *Frame) Read(cl string) interface{} {
 
 		return ret
 
-	// case T_BINARY:
+	case T_BINARY:
+		// no need to process this
+		return bt
 
 	// case T_CATEGORY
 	// case T_TIMESTAMP
@@ -257,8 +262,6 @@ func (fr *Frame) Read(cl string) interface{} {
 		panic("Unsupported format") // TODO
 
 	}
-
-	return struct{}{}
 }
 
 func (fr *Frame) ReadBool(cl string) []bool {

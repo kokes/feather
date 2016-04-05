@@ -106,3 +106,14 @@ func TestNulls(t *testing.T) {
 	}
 
 }
+
+// test if loose bitmaps work alright
+func TestAlignment(t *testing.T) {
+	fn := "../testdata/minwage_non8.fth"
+	f, _ := Open(fn)
+
+	_ = f.ReadString("c")
+	_ = f.ReadDouble("unem")
+	_ = f.ReadBool("mw")
+
+}
