@@ -38,10 +38,10 @@ func TestBool(t *testing.T) {
 
 	vl := map[int]bool{
 		0:   true,
-		20: false,
-		34: false,
-		91: false,
-		99: false,
+		20:  false,
+		34:  false,
+		91:  false,
+		99:  false,
 		100: false,
 		143: true,
 		159: true,
@@ -89,7 +89,7 @@ func TestUTF(t *testing.T) {
 		}
 	}
 }
-	
+
 func TestNulls(t *testing.T) {
 	fn := "../testdata/minwage_nulls.fth"
 	f, _ := Open(fn)

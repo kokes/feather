@@ -1,9 +1,10 @@
 package feather
 
 import (
+	"./fbs"
 	"bytes"
 	"os"
-	"./fbs"
+	// "log"
 	"encoding/binary"
 	"errors"
 	// flatbuffers "github.com/google/flatbuffers/go"
@@ -25,8 +26,8 @@ type Column struct {
 	TotalBytes int64
 	NullCount  int64
 	NullMap    []bool // store bitarray of nulls (TODO: return interface{} with nils instead?)
-					  // TODO: this only gets populated when column gets read
-	Encoding   int8
+	// TODO: this only gets populated when column gets read
+	Encoding int8
 	// Metadata
 	// MetadataType
 }
@@ -142,8 +143,8 @@ func (fr *Frame) Read(cl string) interface{} {
 
 	ncb := int64(0) // bytes occupied by the bitmask
 	if cln.NullCount != 0 {
-		ncb = cln.Length/8
-		if cln.Length % 8 > 0 {
+		ncb = cln.Length / 8
+		if cln.Length%8 > 0 {
 			ncb += 1
 		}
 
@@ -154,12 +155,12 @@ func (fr *Frame) Read(cl string) interface{} {
 		maxb := 8
 		for j, b := range bt {
 			// handling a loose byte
-			if int64(j) == ncb - 1 && cln.Length % 8 > 0 {
+			if int64(j) == ncb-1 && cln.Length%8 > 0 {
 				maxb = int(cln.Length % 8)
 			}
 
 			for k := 0; k < maxb; k++ {
-				cln.NullMap[j*8 + k] = b != b | uint8(1) << uint8(k)
+				cln.NullMap[j*8+k] = b != b|uint8(1)<<uint8(k)
 			}
 		}
 
@@ -168,8 +169,8 @@ func (fr *Frame) Read(cl string) interface{} {
 		panic("Can't do dictionaries just yet") // TODO
 	}
 
-	bt := make([]byte, cln.TotalBytes - ncb)
-	fr.File.ReadAt(bt, cln.Offset + ncb)
+	bt := make([]byte, cln.TotalBytes-ncb)
+	fr.File.ReadAt(bt, cln.Offset+ncb)
 
 	buf := bytes.NewBuffer(bt)
 
@@ -180,7 +181,7 @@ func (fr *Frame) Read(cl string) interface{} {
 			// TODO: will fail on a loose bit array
 			// OPTIM: trivial to unroll - test performance
 			for k := 0; k < 8; k++ {
-				ret[j*8 + k] = b == b | uint8(1) << uint8(k)
+				ret[j*8+k] = b == b|uint8(1)<<uint8(k)
 			}
 		}
 		return ret
@@ -232,7 +233,7 @@ func (fr *Frame) Read(cl string) interface{} {
 
 	case T_UTF8:
 		// offsets
-		off := make([]uint32, cln.Length)
+		off := make([]uint32, cln.Length+1)
 		binary.Read(buf, binary.LittleEndian, &off)
 
 		// actual strings
@@ -240,14 +241,8 @@ func (fr *Frame) Read(cl string) interface{} {
 
 		bt = bt[4*(cln.Length+1):] // cut off the offsets
 
-		var end uint32
-		for j, o := range off {
-			if j < len(off)-1 {
-				end = off[j+1]
-			} else {
-				end = uint32(len(bt))
-			}
-			ret[j] = string(bt[o:end])
+		for j := 0; j < int(cln.Length); j++ {
+			ret[j] = string(bt[off[j]:off[j+1]])
 		}
 
 		return ret
