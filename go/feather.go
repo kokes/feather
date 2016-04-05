@@ -3,7 +3,6 @@ package feather
 import (
 	"bytes"
 	"os"
-	// "log"
 	"./fbs"
 	"encoding/binary"
 	"errors"
@@ -169,7 +168,7 @@ func (fr *Frame) Read(cl string) interface{} {
 		panic("Can't do dictionaries just yet") // TODO
 	}
 
-	bt := make([]byte, cln.TotalBytes)
+	bt := make([]byte, cln.TotalBytes - ncb)
 	fr.File.ReadAt(bt, cln.Offset + ncb)
 
 	buf := bytes.NewBuffer(bt)
