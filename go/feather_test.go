@@ -2,6 +2,7 @@ package feather
 
 import (
 	"testing"
+	// "log"
 )
 
 // TODO: get feather files from the test suite in the
@@ -93,10 +94,15 @@ func TestNulls(t *testing.T) {
 	fn := "../testdata/minwage_nulls.fth"
 	f, _ := Open(fn)
 
-	r := f.ReadString("c")
+	_ = f.ReadString("c")
+	_ = f.ReadDouble("unem")
 
-	_=r
+	num := []int{0, 5}
 
-
+	for _, j := range num {
+		if f.Meta["unem"].NullMap[j] != true {
+			t.Errorf("Expecting nulls")
+		}
+	}
 
 }

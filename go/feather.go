@@ -3,6 +3,7 @@ package feather
 import (
 	"bytes"
 	"os"
+	// "log"
 	"./fbs"
 	"encoding/binary"
 	"errors"
@@ -25,6 +26,7 @@ type Column struct {
 	TotalBytes int64
 	NullCount  int64
 	NullMap    []bool // store bitarray of nulls (TODO: return interface{} with nils instead?)
+					  // TODO: this only gets populated when column gets read
 	Encoding   int8
 	// Metadata
 	// MetadataType
@@ -158,7 +160,7 @@ func (fr *Frame) Read(cl string) interface{} {
 			}
 
 			for k := 0; k < maxb; k++ {
-				cln.NullMap[j*8 + k] = b == b | uint8(1) << uint8(k)
+				cln.NullMap[j*8 + k] = b != b | uint8(1) << uint8(k)
 			}
 		}
 
