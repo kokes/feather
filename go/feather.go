@@ -141,6 +141,8 @@ func (fr *Frame) Read(cl string) interface{} {
 		panic("Column not found")
 	}
 
+	fr.File.Seek(cln.Offset, 0)
+
 	ncb := int64(0) // bytes occupied by the bitmask
 	if cln.NullCount != 0 {
 		ncb = cln.Length / 8
@@ -149,7 +151,7 @@ func (fr *Frame) Read(cl string) interface{} {
 		}
 
 		bt := make([]byte, ncb)
-		fr.File.ReadAt(bt, cln.Offset)
+		fr.File.Read(bt)
 		cln.NullMap = make([]bool, cln.Length)
 
 		maxb := 8
@@ -169,20 +171,18 @@ func (fr *Frame) Read(cl string) interface{} {
 		panic("Can't do dictionaries just yet") // TODO
 	}
 
-	bt := make([]byte, cln.TotalBytes-ncb)
-	fr.File.ReadAt(bt, cln.Offset+ncb)
-
-	buf := bytes.NewBuffer(bt)
-
 	switch cln.Type {
 	case T_BOOL:
 		ret := make([]bool, cln.Length)
 		maxb := 8
+		bt := make([]byte, cln.TotalBytes-ncb)
+		fr.File.Read(bt)
+
 		for j, b := range bt {
 			if j == len(bt)-1 && cln.Length%8 > 0 {
 				maxb = int(cln.Length % 8)
 			}
-			
+
 			for k := 0; k < maxb; k++ {
 				ret[j*8+k] = b == b|uint8(1)<<uint8(k)
 			}
@@ -193,51 +193,53 @@ func (fr *Frame) Read(cl string) interface{} {
 	//		 involves unsafe changes to slice properties
 	case T_INT8:
 		ret := make([]int8, cln.Length)
-		binary.Read(buf, binary.LittleEndian, &ret)
+		binary.Read(fr.File, binary.LittleEndian, &ret)
 		return ret
 	case T_INT16:
 		ret := make([]int16, cln.Length)
-		binary.Read(buf, binary.LittleEndian, &ret)
+		binary.Read(fr.File, binary.LittleEndian, &ret)
 		return ret
 	case T_INT32:
 		ret := make([]int32, cln.Length)
-		binary.Read(buf, binary.LittleEndian, &ret)
+		binary.Read(fr.File, binary.LittleEndian, &ret)
 		return ret
 	case T_INT64:
 		ret := make([]int64, cln.Length)
-		binary.Read(buf, binary.LittleEndian, &ret)
+		binary.Read(fr.File, binary.LittleEndian, &ret)
 		return ret
 
 	case T_UINT8:
 		ret := make([]uint8, cln.Length)
-		binary.Read(buf, binary.LittleEndian, &ret)
+		binary.Read(fr.File, binary.LittleEndian, &ret)
 		return ret
 	case T_UINT16:
 		ret := make([]uint16, cln.Length)
-		binary.Read(buf, binary.LittleEndian, &ret)
+		binary.Read(fr.File, binary.LittleEndian, &ret)
 		return ret
 	case T_UINT32:
 		ret := make([]uint32, cln.Length)
-		binary.Read(buf, binary.LittleEndian, &ret)
+		binary.Read(fr.File, binary.LittleEndian, &ret)
 		return ret
 	case T_UINT64:
 		ret := make([]uint64, cln.Length)
-		binary.Read(buf, binary.LittleEndian, &ret)
+		binary.Read(fr.File, binary.LittleEndian, &ret)
 		return ret
 
 	case T_FLOAT:
 		ret := make([]float32, cln.Length)
-		binary.Read(buf, binary.LittleEndian, &ret)
+		binary.Read(fr.File, binary.LittleEndian, &ret)
 		return ret
 	case T_DOUBLE:
 		ret := make([]float64, cln.Length)
-		binary.Read(buf, binary.LittleEndian, &ret)
+		binary.Read(fr.File, binary.LittleEndian, &ret)
 		return ret
 
 	case T_UTF8:
+		bt := make([]byte, cln.TotalBytes-ncb)
+		fr.File.Read(bt)
 		// offsets
 		off := make([]uint32, cln.Length+1)
-		binary.Read(buf, binary.LittleEndian, &off)
+		binary.Read(bytes.NewBuffer(bt), binary.LittleEndian, &off)
 
 		// actual strings
 		ret := make([]string, cln.Length)
@@ -252,6 +254,8 @@ func (fr *Frame) Read(cl string) interface{} {
 
 	case T_BINARY:
 		// no need to process this
+		bt := make([]byte, cln.TotalBytes-ncb)
+		fr.File.Read(bt)
 		return bt
 
 	// case T_CATEGORY
